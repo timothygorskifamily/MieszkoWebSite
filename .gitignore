@@ -1,0 +1,16 @@
+node_modules
+.next
+out
+.open-next
+.wrangler
+videos
+images/*.mp4
+images/*.MP4
+images/*.mov
+images/*.MOV
+images/*.heic
+images/*.HEIC
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
