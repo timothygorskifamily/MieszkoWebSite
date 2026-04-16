@@ -19,6 +19,7 @@ export function BackgroundAudio() {
   const normalizedPathname = pathname.replace(/\/+$/, "") || "/";
   const isMusicRoute = normalizedPathname === "/music";
   const currentTrack = musicLibrary[currentTrackIndex] ?? backgroundTrack;
+  const isMuted = muted || volume === 0;
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -71,7 +72,7 @@ export function BackgroundAudio() {
       window.removeEventListener("pointerdown", unlock);
       window.removeEventListener("keydown", unlock);
     };
-  }, [currentTrackIndex, isMusicRoute]);
+  }, [currentTrackIndex, isMusicRoute, muted, volume]);
 
   useEffect(() => {
     if (!isMusicRoute) {
@@ -94,14 +95,14 @@ export function BackgroundAudio() {
       return;
     }
 
-    const advanceTrack = async () => {
+    const advanceTrack = () => {
       const nextIndex = (currentTrackIndex + 1) % musicLibrary.length;
       setCurrentTrackIndex(nextIndex);
     };
 
     audio.addEventListener("ended", advanceTrack);
     return () => audio.removeEventListener("ended", advanceTrack);
-  }, [currentTrackIndex, isMusicRoute]);
+  }, [currentTrackIndex]);
 
   useEffect(() => {
     const stopBackgroundAudio = () => {
@@ -140,6 +141,8 @@ export function BackgroundAudio() {
     audio.pause();
     setIsPlaying(false);
   };
+
+  const volumeControlValue = isMuted ? 0 : volume;
 
   return (
     <>
@@ -201,9 +204,9 @@ export function BackgroundAudio() {
                   type="button"
                   onClick={() => setMuted((current) => !current)}
                   className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[color:var(--line)] bg-[color:var(--surface)] text-[color:var(--foreground)] hover:-translate-y-0.5"
-                  aria-label={muted ? "Unmute background music" : "Mute background music"}
+                  aria-label={isMuted ? "Unmute background music" : "Mute background music"}
                 >
-                  {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                  {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                 </button>
 
                 <button
@@ -232,7 +235,7 @@ export function BackgroundAudio() {
                 min="0"
                 max="1"
                 step="0.01"
-                value={muted ? 0 : volume}
+                value={volumeControlValue}
                 onChange={(event) => {
                   const nextVolume = Number(event.target.value);
                   setVolume(nextVolume);
@@ -255,3 +258,4 @@ export function BackgroundAudio() {
     </>
   );
 }
+

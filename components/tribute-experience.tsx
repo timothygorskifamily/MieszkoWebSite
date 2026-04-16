@@ -1,6 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  ThemeModeWithSystem,
+  ThemeMode,
+  ThemeKey,
+  ThemeOption,
+  THEME_OPTIONS,
+  THEME_STORAGE_KEY,
+  applyThemeToDocument,
+  getSystemThemeMode,
+  parseStoredTheme,
+  getResolvedThemeMode,
+} from "@/lib/tribute-theme";
 import { navigationItems, tributeContent } from "@/data/tribute-content";
 import { BiographySection } from "@/components/biography-section";
 import { GallerySection } from "@/components/gallery-section";
@@ -10,20 +22,38 @@ import { StickyNav } from "@/components/sticky-nav";
 import { TimelineSection } from "@/components/timeline-section";
 import { ValuesSection } from "@/components/values-section";
 
+const themeOptions: ThemeOption[] = THEME_OPTIONS;
+
 export function TributeExperience() {
   const [activeSection, setActiveSection] = useState("home");
-  const [isDark, setIsDark] = useState(false);
+  const [themeMode, setThemeMode] = useState<ThemeModeWithSystem>("system");
+  const [activeTheme, setActiveTheme] = useState<ThemeKey>("sunrise");
+  const [systemMode, setSystemMode] = useState<ThemeMode>("day");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const storedTheme = window.localStorage.getItem("tribute-theme");
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const nextIsDark = storedTheme ? storedTheme === "dark" : prefersDark;
+    const storedTheme = parseStoredTheme();
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const nextSystemMode = getSystemThemeMode();
 
-    document.documentElement.classList.toggle("dark", nextIsDark);
-    setIsDark(nextIsDark);
+    setThemeMode(storedTheme.mode);
+    setActiveTheme(storedTheme.theme);
+    setSystemMode(nextSystemMode);
+    applyThemeToDocument(storedTheme.theme, storedTheme.mode, nextSystemMode);
     setMounted(true);
+
+    const handleSystemThemeChange = () => {
+      setSystemMode(getSystemThemeMode());
+    };
+
+    mediaQuery.addEventListener("change", handleSystemThemeChange);
+    return () => mediaQuery.removeEventListener("change", handleSystemThemeChange);
   }, []);
+
+  useEffect(() => {
+    applyThemeToDocument(activeTheme, themeMode, systemMode);
+    window.localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify({ theme: activeTheme, mode: themeMode }));
+  }, [activeTheme, themeMode, systemMode]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -53,10 +83,13 @@ export function TributeExperience() {
   }, []);
 
   const toggleTheme = () => {
-    const nextIsDark = !isDark;
-    setIsDark(nextIsDark);
-    document.documentElement.classList.toggle("dark", nextIsDark);
-    window.localStorage.setItem("tribute-theme", nextIsDark ? "dark" : "light");
+    const targetMode = themeMode === "system" ? systemMode : themeMode;
+    setThemeMode(targetMode === "day" ? "night" : "day");
+  };
+
+  const setTheme = (theme: ThemeKey, mode: ThemeModeWithSystem) => {
+    setActiveTheme(theme);
+    setThemeMode(mode);
   };
 
   return (
@@ -64,9 +97,13 @@ export function TributeExperience() {
       <StickyNav
         sections={navigationItems}
         activeSection={activeSection}
-        isDark={isDark}
+        themeOptions={themeOptions}
+        activeTheme={activeTheme}
+        themeMode={themeMode}
+        resolvedMode={getResolvedThemeMode(themeMode, systemMode)}
         mounted={mounted}
         onToggleTheme={toggleTheme}
+        onSetTheme={setTheme}
       />
 
       <main className="relative overflow-hidden">
