@@ -118,7 +118,6 @@ export function TributeExperience() {
       <footer className="px-4 pb-10 pt-4">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 border-t border-[color:var(--line)] pt-6 text-sm text-[color:var(--muted)] md:flex-row md:items-center md:justify-between">
           <p>Built as a living tribute for {tributeContent.site.name}.</p>
-          <p>This page is ready for real photos, biography details, and music recordings whenever you are.</p>
         </div>
       </footer>
     </>
