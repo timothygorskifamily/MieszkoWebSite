@@ -32,7 +32,6 @@ $trackConfig = @{
   "WanderingSoul.mp3" = @{ priority = 6; title = "Wandering Soul"; description = "An introspective track with a searching, inward character."; inspiration = "A meditation on identity, change, and the long arc of a life." }
   "SoloTravel.mp3" = @{ priority = 7; title = "Solo Travel"; description = "A personal and reflective work that suggests motion through unfamiliar places."; inspiration = "A study in independence, curiosity, and inner dialogue." }
   "RockyWays.mp3" = @{ priority = 8; title = "Rocky Ways"; description = "A piece that feels shaped by perseverance and uneven paths."; inspiration = "A musical acknowledgment of effort, resilience, and hard-earned progress." }
-  "LullabyForSon.mp3" = @{ priority = 9; title = "Lullaby for Son"; description = "A tender, intimate composition centered on care and closeness."; inspiration = "A family piece rooted in affection, memory, and gentleness." }
   "Tymoteusz.mp3" = @{ priority = 10; title = "Tymoteusz"; description = "A personal dedication that gives the library a more intimate family register."; inspiration = "Presented as a named musical offering within the family story." }
   "DadaDance.mp3" = @{ priority = 11; title = "Dada Dance"; description = "A playful, rhythmic work that brings contrast and energy to the collection."; inspiration = "A lighter, more animated piece that balances the reflective tracks." }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Pause, Play, Volume2, VolumeX } from "lucide-react";
+import { ChevronDown, ChevronUp, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -10,6 +10,7 @@ export function BackgroundAudio() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const backgroundTrackIndex = musicLibrary.findIndex((track) => track.fileName === backgroundTrack.fileName);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
   const [volume, setVolume] = useState(0.18);
   const [muted, setMuted] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
@@ -144,64 +145,112 @@ export function BackgroundAudio() {
     <>
       <audio ref={audioRef} src={currentTrack.src} preload="auto" autoPlay />
 
-      <div className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[75] rounded-[24px] border border-[color:var(--line)] bg-[color:var(--surface-strong)] p-3 shadow-ambient backdrop-blur-xl sm:inset-x-auto sm:right-4 sm:w-[min(92vw,24rem)] sm:rounded-[26px] sm:p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.26em] text-[color:var(--muted)]">
-              Background music
-            </p>
-            <p className="mt-1.5 truncate pr-2 font-display text-xl leading-none text-[color:var(--foreground)] sm:mt-2 sm:text-2xl">
-              {currentTrack.title}
-            </p>
-            <p className="mt-2 text-xs leading-5 text-[color:var(--muted)] sm:text-sm sm:leading-6">
-              {hasStarted
-                ? "Playing softly in the background and rotating through the full library."
-                : "Playback will begin automatically when your browser allows it or after your first interaction."}
-            </p>
+      <div
+        className={`fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[75] border border-[color:var(--line)] bg-[color:var(--surface-strong)] shadow-ambient backdrop-blur-xl sm:inset-x-auto sm:right-4 ${
+          isMinimized
+            ? "rounded-full px-3 py-2 sm:w-[min(92vw,18rem)]"
+            : "rounded-[24px] p-3 sm:w-[min(92vw,24rem)] sm:rounded-[26px] sm:p-4"
+        }`}
+      >
+        {isMinimized ? (
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={togglePlayback}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--accent)] text-[#fffaf4] hover:-translate-y-0.5"
+              aria-label={isPlaying ? "Pause background music" : "Play background music"}
+            >
+              {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+            </button>
+
+            <div className="min-w-0 flex-1">
+              <p className="text-[0.6rem] font-semibold uppercase tracking-[0.24em] text-[color:var(--muted)]">
+                Background music
+              </p>
+              <p className="truncate font-display text-lg leading-none text-[color:var(--foreground)]">{currentTrack.title}</p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsMinimized(false)}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[color:var(--line)] bg-[color:var(--surface)] text-[color:var(--foreground)] hover:-translate-y-0.5"
+              aria-label="Expand background music player"
+            >
+              <ChevronUp className="h-4 w-4" />
+            </button>
           </div>
+        ) : (
+          <>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[0.65rem] font-semibold uppercase tracking-[0.26em] text-[color:var(--muted)]">
+                  Background music
+                </p>
+                <p className="mt-1.5 truncate pr-2 font-display text-xl leading-none text-[color:var(--foreground)] sm:mt-2 sm:text-2xl">
+                  {currentTrack.title}
+                </p>
+                <p className="mt-2 text-xs leading-5 text-[color:var(--muted)] sm:text-sm sm:leading-6">
+                  {hasStarted
+                    ? "Playing softly in the background and rotating through the full library."
+                    : "Playback will begin automatically when your browser allows it or after your first interaction."}
+                </p>
+              </div>
 
-          <button
-            type="button"
-            onClick={() => setMuted((current) => !current)}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[color:var(--line)] bg-[color:var(--surface)] text-[color:var(--foreground)] hover:-translate-y-0.5"
-            aria-label={muted ? "Unmute background music" : "Mute background music"}
-          >
-            {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-          </button>
-        </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMuted((current) => !current)}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[color:var(--line)] bg-[color:var(--surface)] text-[color:var(--foreground)] hover:-translate-y-0.5"
+                  aria-label={muted ? "Unmute background music" : "Mute background music"}
+                >
+                  {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                </button>
 
-        <div className="mt-3 flex items-center gap-3 sm:mt-4">
-          <button
-            type="button"
-            onClick={togglePlayback}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[color:var(--accent)] text-[#fffaf4] hover:-translate-y-0.5"
-            aria-label={isPlaying ? "Pause background music" : "Play background music"}
-          >
-            {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-          </button>
+                <button
+                  type="button"
+                  onClick={() => setIsMinimized(true)}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[color:var(--line)] bg-[color:var(--surface)] text-[color:var(--foreground)] hover:-translate-y-0.5"
+                  aria-label="Minimize background music player"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
 
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={muted ? 0 : volume}
-            onChange={(event) => {
-              const nextVolume = Number(event.target.value);
-              setVolume(nextVolume);
-              setMuted(nextVolume === 0);
-            }}
-            aria-label="Background music volume"
-            className="h-2 w-full cursor-pointer accent-[color:var(--accent)]"
-          />
-        </div>
+            <div className="mt-3 flex items-center gap-3 sm:mt-4">
+              <button
+                type="button"
+                onClick={togglePlayback}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[color:var(--accent)] text-[#fffaf4] hover:-translate-y-0.5"
+                aria-label={isPlaying ? "Pause background music" : "Play background music"}
+              >
+                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+              </button>
 
-        <div className="mt-3 flex items-center justify-between gap-3 text-xs sm:mt-4 sm:text-sm">
-          <span className="text-[color:var(--muted)]">{currentTrack.duration}</span>
-          <Link href="/music" className="font-semibold text-[color:var(--accent)] hover:opacity-80">
-            Open music page
-          </Link>
-        </div>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={muted ? 0 : volume}
+                onChange={(event) => {
+                  const nextVolume = Number(event.target.value);
+                  setVolume(nextVolume);
+                  setMuted(nextVolume === 0);
+                }}
+                aria-label="Background music volume"
+                className="h-2 w-full cursor-pointer accent-[color:var(--accent)]"
+              />
+            </div>
+
+            <div className="mt-3 flex items-center justify-between gap-3 text-xs sm:mt-4 sm:text-sm">
+              <span className="text-[color:var(--muted)]">{currentTrack.duration}</span>
+              <Link href="/music" className="font-semibold text-[color:var(--accent)] hover:opacity-80">
+                Open music page
+              </Link>
+            </div>
+          </>
+        )}
       </div>
     </>
   );

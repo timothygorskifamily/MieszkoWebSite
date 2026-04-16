@@ -115,16 +115,6 @@ export const musicLibrary = [
         "background":  false
     },
     {
-        "src":  "/music-library/lullabyforson.mp3",
-        "fileName":  "LullabyForSon.mp3",
-        "title":  "Lullaby for Son",
-        "duration":  "00:02:29",
-        "description":  "A tender, intimate composition centered on care and closeness.",
-        "inspiration":  "A family piece rooted in affection, memory, and gentleness.",
-        "featured":  false,
-        "background":  false
-    },
-    {
         "src":  "/music-library/tymoteusz.mp3",
         "fileName":  "Tymoteusz.mp3",
         "title":  "Tymoteusz",
@@ -147,6 +137,6 @@ export const musicLibrary = [
 ] as const satisfies readonly MusicTrack[];
 
 export const musicSummary = {
-  totalTracks: 11,
+  totalTracks: 10,
   unsupportedFiles: [],
 } as const;
