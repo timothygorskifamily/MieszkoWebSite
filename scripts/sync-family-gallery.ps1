@@ -79,6 +79,66 @@ function Get-NumericDetailValue([string]$Value, [int]$DefaultValue = 0) {
   return $DefaultValue
 }
 
+function Try-ParseDateTimeValue([string]$Value) {
+  if ([string]::IsNullOrWhiteSpace($Value)) {
+    return $null
+  }
+
+  $trimmed = $Value.Trim()
+  $formats = @(
+    "yyyy:MM:dd HH:mm:ss",
+    "yyyy-MM-ddTHH:mm:ss",
+    "yyyy-MM-dd HH:mm:ss",
+    "M/d/yyyy h:mm:ss tt",
+    "M/d/yyyy h:mm tt",
+    "M/d/yyyy H:mm:ss",
+    "M/d/yyyy H:mm"
+  )
+  $parsed = [DateTime]::MinValue
+
+  foreach ($format in $formats) {
+    if ([DateTime]::TryParseExact($trimmed, $format, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AllowWhiteSpaces, [ref]$parsed)) {
+      return $parsed
+    }
+  }
+
+  if ([DateTime]::TryParse($trimmed, [ref]$parsed)) {
+    return $parsed
+  }
+
+  return $null
+}
+
+function Convert-ToCapturedAt([DateTime]$Value) {
+  return $Value.ToString("yyyy-MM-ddTHH:mm:ss", [System.Globalization.CultureInfo]::InvariantCulture)
+}
+
+function Convert-ToCapturedAtLabel([DateTime]$Value) {
+  return $Value.ToString("MMM d, yyyy", [System.Globalization.CultureInfo]::InvariantCulture)
+}
+
+function Get-ImageDateTaken([System.Drawing.Image]$Image) {
+  $property = $Image.PropertyItems | Where-Object { $_.Id -eq 36867 -or $_.Id -eq 36868 } | Select-Object -First 1
+  if (-not $property) {
+    return $null
+  }
+
+  $rawValue = [System.Text.Encoding]::ASCII.GetString($property.Value).Trim([char]0)
+  return Try-ParseDateTimeValue $rawValue
+}
+
+function Get-ShellDetailDate([object]$Folder, [object]$Item, [int[]]$Indexes) {
+  foreach ($index in $Indexes) {
+    $rawValue = $Folder.GetDetailsOf($Item, $index)
+    $parsed = Try-ParseDateTimeValue $rawValue
+    if ($parsed) {
+      return $parsed
+    }
+  }
+
+  return $null
+}
+
 function Get-MimeType([string]$Extension) {
   switch ($Extension.ToLowerInvariant()) {
     ".mp4" { return "video/mp4" }
@@ -118,7 +178,8 @@ function Get-DefaultVideoCaption([string]$Name) {
   }
 }
 
-function Get-VideoMetadata([string]$Path) {
+function Get-VideoMetadata([System.IO.FileInfo]$File, [object]$Details) {
+  $Path = $File.FullName
   $shell = New-Object -ComObject Shell.Application
   $folderPath = Split-Path -Path $Path -Parent
   $fileName = Split-Path -Path $Path -Leaf
@@ -142,6 +203,19 @@ function Get-VideoMetadata([string]$Path) {
   $lengthValue = $folder.GetDetailsOf($item, 27)
   $duration = [TimeSpan]::Zero
   [TimeSpan]::TryParse($lengthValue, [ref]$duration) | Out-Null
+  $capturedAt = $null
+
+  if ($Details -and $Details.ContainsKey("capturedAt")) {
+    $capturedAt = Try-ParseDateTimeValue ([string]$Details.capturedAt)
+  }
+
+  if (-not $capturedAt) {
+    $capturedAt = Get-ShellDetailDate -Folder $folder -Item $item -Indexes @(208, 12, 189, 136, 152, 4)
+  }
+
+  if (-not $capturedAt) {
+    $capturedAt = $File.CreationTime
+  }
 
   if ($width -le 0) {
     $width = 1920
@@ -156,7 +230,51 @@ function Get-VideoMetadata([string]$Path) {
     orientation = if ($width -ge $height) { "landscape" } else { "portrait" }
     durationSeconds = [int][Math]::Round($duration.TotalSeconds)
     durationLabel = Convert-ToDurationLabel $duration
+    capturedAt = $capturedAt
   }
+}
+
+function Convert-ToExportPhoto([object]$Item) {
+  return [PSCustomObject]@{
+    type = "photo"
+    src = [string]$Item.src
+    alt = [string]$Item.alt
+    caption = [string]$Item.caption
+    note = [string]$Item.note
+    originalName = [string]$Item.originalName
+    width = [int]$Item.width
+    height = [int]$Item.height
+    orientation = [string]$Item.orientation
+    capturedAt = [string]$Item.capturedAt
+    capturedAtLabel = [string]$Item.capturedAtLabel
+  }
+}
+
+function Convert-ToExportVideo([object]$Item) {
+  return [PSCustomObject]@{
+    type = "video"
+    src = [string]$Item.src
+    alt = [string]$Item.alt
+    caption = [string]$Item.caption
+    note = [string]$Item.note
+    originalName = [string]$Item.originalName
+    width = [int]$Item.width
+    height = [int]$Item.height
+    orientation = [string]$Item.orientation
+    capturedAt = [string]$Item.capturedAt
+    capturedAtLabel = [string]$Item.capturedAtLabel
+    durationSeconds = [int]$Item.durationSeconds
+    durationLabel = [string]$Item.durationLabel
+    mimeType = [string]$Item.mimeType
+  }
+}
+
+function Convert-ToExportMedia([object]$Item) {
+  if ($Item.type -eq "video") {
+    return Convert-ToExportVideo $Item
+  }
+
+  return Convert-ToExportPhoto $Item
 }
 
 [System.IO.Directory]::CreateDirectory($TargetDir) | Out-Null
@@ -206,6 +324,15 @@ foreach ($file in $allFiles) {
     $isFeatured = $featuredConfig.ContainsKey($file.Name)
     $priority = if ($isFeatured) { [int]$details.priority } else { 1000 }
     $isHero = $isFeatured -and ($details.hero -eq $true)
+    $capturedAt = if ($details.ContainsKey("capturedAt")) { Try-ParseDateTimeValue ([string]$details.capturedAt) } else { $null }
+
+    if (-not $capturedAt) {
+      $capturedAt = Get-ImageDateTaken $image
+    }
+
+    if (-not $capturedAt) {
+      $capturedAt = $file.CreationTime
+    }
 
     $photoItems += [PSCustomObject]@{
       type = "photo"
@@ -217,6 +344,8 @@ foreach ($file in $allFiles) {
       width = [int]$image.Width
       height = [int]$image.Height
       orientation = $orientation
+      capturedAt = Convert-ToCapturedAt $capturedAt
+      capturedAtLabel = Convert-ToCapturedAtLabel $capturedAt
       featured = $isFeatured
       hero = $isHero
       priority = $priority
@@ -235,7 +364,8 @@ foreach ($file in $allVideoFiles) {
     continue
   }
 
-  $metadata = Get-VideoMetadata $file.FullName
+  $details = if ($videoConfig.ContainsKey($file.Name)) { $videoConfig[$file.Name] } else { Get-DefaultVideoCaption $file.Name }
+  $metadata = Get-VideoMetadata -File $file -Details $details
   $slug = Convert-ToSlug -Name $file.Name -Extension $extension
 
   if ($usedVideoSlugs.ContainsKey($slug)) {
@@ -247,7 +377,6 @@ foreach ($file in $allVideoFiles) {
 
   Copy-Item -LiteralPath $file.FullName -Destination (Join-Path $VideoTargetDir $slug) -Force
 
-  $details = if ($videoConfig.ContainsKey($file.Name)) { $videoConfig[$file.Name] } else { Get-DefaultVideoCaption $file.Name }
   $priority = if ($videoConfig.ContainsKey($file.Name)) { [int]$details.priority } else { 1000 }
 
   $videoItems += [PSCustomObject]@{
@@ -260,6 +389,8 @@ foreach ($file in $allVideoFiles) {
     width = [int]$metadata.width
     height = [int]$metadata.height
     orientation = [string]$metadata.orientation
+    capturedAt = Convert-ToCapturedAt ([DateTime]$metadata.capturedAt)
+    capturedAtLabel = Convert-ToCapturedAtLabel ([DateTime]$metadata.capturedAt)
     durationSeconds = [int]$metadata.durationSeconds
     durationLabel = [string]$metadata.durationLabel
     mimeType = Get-MimeType $extension
@@ -268,14 +399,16 @@ foreach ($file in $allVideoFiles) {
 }
 
 $heroPhoto = $photoItems | Where-Object { $_.hero } | Select-Object -First 1
-$featuredPhotos = $photoItems | Where-Object { $_.featured } | Sort-Object priority, originalName
-$archivePhotos = $photoItems | Sort-Object priority, originalName
-$archiveVideos = $videoItems | Sort-Object priority, originalName
+$featuredPhotos = $photoItems | Where-Object { $_.featured } | Sort-Object priority, capturedAt, originalName
+$archivePhotos = $photoItems | Sort-Object capturedAt, originalName
+$archiveVideos = $videoItems | Sort-Object capturedAt, originalName
+$archiveMedia = @($photoItems + $videoItems) | Sort-Object capturedAt, originalName, type
 
-$heroJson = $heroPhoto | Select-Object type, src, alt, caption, note, originalName, width, height, orientation | ConvertTo-Json -Depth 4
-$featuredJson = @($featuredPhotos | Select-Object type, src, alt, caption, note, originalName, width, height, orientation) | ConvertTo-Json -Depth 4
-$archiveJson = @($archivePhotos | Select-Object type, src, alt, caption, note, originalName, width, height, orientation) | ConvertTo-Json -Depth 4
-$videoJson = @($archiveVideos | Select-Object type, src, alt, caption, note, originalName, width, height, orientation, durationSeconds, durationLabel, mimeType) | ConvertTo-Json -Depth 4
+$heroJson = (Convert-ToExportPhoto $heroPhoto) | ConvertTo-Json -Depth 4
+$featuredJson = @($featuredPhotos | ForEach-Object { Convert-ToExportPhoto $_ }) | ConvertTo-Json -Depth 4
+$archiveJson = @($archivePhotos | ForEach-Object { Convert-ToExportPhoto $_ }) | ConvertTo-Json -Depth 4
+$videoJson = @($archiveVideos | ForEach-Object { Convert-ToExportVideo $_ }) | ConvertTo-Json -Depth 4
+$mediaJson = @($archiveMedia | ForEach-Object { Convert-ToExportMedia $_ }) | ConvertTo-Json -Depth 4
 $unsupportedJson = @($unsupportedFiles) | ConvertTo-Json -Depth 2
 
 $manifest = @"
@@ -289,6 +422,8 @@ export type GalleryPhoto = {
   width: number;
   height: number;
   orientation: "landscape" | "portrait";
+  capturedAt: string;
+  capturedAtLabel: string;
 };
 
 export type GalleryVideo = {
@@ -301,6 +436,8 @@ export type GalleryVideo = {
   width: number;
   height: number;
   orientation: "landscape" | "portrait";
+  capturedAt: string;
+  capturedAtLabel: string;
   durationSeconds: number;
   durationLabel: string;
   mimeType: string;
@@ -318,7 +455,7 @@ export const archivePhotos = $archiveJson as const satisfies readonly GalleryPho
 
 export const archiveVideos = $videoJson as const satisfies readonly GalleryVideo[];
 
-export const archiveMedia = [...archivePhotos, ...archiveVideos] as const satisfies readonly GalleryMedia[];
+export const archiveMedia = $mediaJson as const satisfies readonly GalleryMedia[];
 
 export const gallerySummary = {
   totalPhotos: $($archivePhotos.Count),

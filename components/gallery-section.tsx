@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, PlayCircle, X } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { SectionHeading } from "@/components/section-heading";
-import { archivePhotos, archiveVideos, featuredPhotos } from "@/data/gallery-manifest";
+import { archiveMedia, featuredPhotos } from "@/data/gallery-manifest";
 
 const featuredLayout = [
   "md:col-span-7 md:row-span-2",
@@ -25,29 +25,8 @@ function getMediaKey(item: { type: "photo" | "video"; originalName: string }) {
 
 export function GallerySection({ id }: GallerySectionProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const hasVideos = archiveVideos.some(() => true);
-
-  const wallMedia = useMemo(() => {
-    const arranged: Array<(typeof archivePhotos)[number] | (typeof archiveVideos)[number]> = [];
-    const interval = Math.max(1, Math.ceil(archivePhotos.length / (archiveVideos.length + 1)));
-    let videoIndex = 0;
-
-    archivePhotos.forEach((photo, index) => {
-      arranged.push(photo);
-
-      if ((index + 1) % interval === 0 && videoIndex < archiveVideos.length) {
-        arranged.push(archiveVideos[videoIndex]);
-        videoIndex += 1;
-      }
-    });
-
-    while (videoIndex < archiveVideos.length) {
-      arranged.push(archiveVideos[videoIndex]);
-      videoIndex += 1;
-    }
-
-    return arranged;
-  }, []);
+  const wallMedia = archiveMedia;
+  const hasVideos = wallMedia.some((item) => item.type === "video");
 
   const indexByName = useMemo(
     () => new Map(wallMedia.map((item, index) => [getMediaKey(item), index])),
@@ -61,7 +40,7 @@ export function GallerySection({ id }: GallerySectionProps) {
 
   const sectionDescription =
     hasVideos
-      ? "This gallery mixes photos and family videos together so every memory appears in one archive wall."
+      ? "This gallery now follows the family archive chronologically so photos and videos unfold together in time."
       : "This gallery highlights a few standout portraits first, then opens into a broader wall of family photographs.";
 
   useEffect(() => {
@@ -138,7 +117,7 @@ export function GallerySection({ id }: GallerySectionProps) {
             </h3>
           </div>
           <p className="max-w-xl text-sm leading-7 text-[color:var(--muted)]">
-            This masonry wall now pulls from the synced media folders so adding more memories stays straightforward.
+            This wall now stays in chronological order automatically, so new photos and videos land in the right place after each sync.
           </p>
         </div>
 
@@ -191,9 +170,10 @@ export function GallerySection({ id }: GallerySectionProps) {
                 )}
               </div>
               <div className="p-4">
-                {item.type === "photo" ? (
-                  <p className="font-semibold text-[color:var(--foreground)]">{item.caption}</p>
-                ) : null}
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--muted)]">
+                  {item.capturedAtLabel}
+                </p>
+                <p className="mt-2 font-semibold text-[color:var(--foreground)]">{item.caption}</p>
                 <p className="mt-1 text-sm leading-6 text-[color:var(--muted)]">{item.note}</p>
               </div>
             </motion.button>
@@ -259,6 +239,9 @@ export function GallerySection({ id }: GallerySectionProps) {
                 {selectedItem.type === "photo" ? (
                   <h3 className="mt-4 font-display text-4xl leading-tight">{selectedItem.caption}</h3>
                 ) : null}
+                <p className={`${selectedItem.type === "photo" ? "mt-4" : "mt-3"} text-xs uppercase tracking-[0.22em] text-stone-300/70`}>
+                  {selectedItem.capturedAtLabel}
+                </p>
                 <p className={`${selectedItem.type === "photo" ? "mt-4" : "mt-3"} text-sm leading-7 text-stone-200/85`}>
                   {selectedItem.note}
                 </p>
